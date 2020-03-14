@@ -1,0 +1,40 @@
+version: '3.3'
+services:
+  server:
+    image: 'redash/redash:latest'
+    command: server
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - '5000:5000'
+    environment:
+      PYTHONUNBUFFERED: 0
+      REDASH_LOG_LEVEL: INFO
+      REDASH_REDIS_URL: 'redis://redis:6379/0'
+      REDASH_DATABASE_URL: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/${POSTGRES_DB}'
+      REDASH_COOKIE_SECRET: ${REDASH_COOKIE_SECRET}
+      REDASH_WEB_WORKERS: 4
+      ATHENA_ANNOTATE_QUERY: 'false'
+  worker:
+    image: 'redash/redash:latest'
+    command: scheduler
+    environment:
+      PYTHONUNBUFFERED: 0
+      REDASH_LOG_LEVEL: INFO
+      REDASH_REDIS_URL: 'redis://redis:6379/0'
+      REDASH_DATABASE_URL: 'postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}'
+      REDASH_COOKIE_SECRET: ${REDASH_COOKIE_SECRET}
+      QUEUES: 'queries,scheduled_queries,celery'
+      WORKERS_COUNT: 2
+      ATHENA_ANNOTATE_QUERY: 'false'
+  redis:
+    image: 'redis:3.0-alpine'
+  nginx:
+    image: 'redash/nginx:latest'
+    ports:
+      - '80:80'
+    depends_on:
+      - server
+    links:
+      - 'server:redash'
